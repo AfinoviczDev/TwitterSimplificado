@@ -32,7 +32,7 @@ public class AdminUserConfig implements CommandLineRunner {
             var roleAdmin = roleRepository.findByName(Role.Values.ADMIN.name());
             var userAdmin = userRepository.findByUsername("admin");
             userAdmin.ifPresentOrElse(
-                    (user) -> {
+                    user -> {
                         System.out.println("Admin ja existe");
                     },
                     () -> {

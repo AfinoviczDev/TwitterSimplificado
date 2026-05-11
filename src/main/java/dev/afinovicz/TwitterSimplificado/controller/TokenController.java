@@ -2,6 +2,7 @@ package dev.afinovicz.TwitterSimplificado.controller;
 
 import dev.afinovicz.TwitterSimplificado.controller.dto.LoginRequest;
 import dev.afinovicz.TwitterSimplificado.controller.dto.LoginResponse;
+import dev.afinovicz.TwitterSimplificado.entities.Role;
 import dev.afinovicz.TwitterSimplificado.repositories.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
+import java.util.stream.Collectors;
 
 @RestController
 public class TokenController {
@@ -30,22 +32,31 @@ public class TokenController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
-           var user = userRepository.findByUsername(loginRequest.username());
-           if(user.isEmpty() || !user.get().isLoginCorrect(loginRequest, bCryptPasswordEncoder)) {
-               throw new BadCredentialsException("user or password is invalid");
-           }
 
-           var now = Instant.now();
-           var expiresIn = 300L;
-           var claims = JwtClaimsSet.builder()
-                   .issuer("mybackend")
-                   .subject(user.get().getUserId().toString())
-                   .issuedAt(now)
-                   .expiresAt(now.plusSeconds(expiresIn))
-                   .build();
+        var user = userRepository.findByUsername(loginRequest.username());
 
-           var jwtValue = jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
+        if (user.isEmpty() || !user.get().isLoginCorrect(loginRequest, bCryptPasswordEncoder)) {
+            throw new BadCredentialsException("user or password is invalid!");
+        }
 
-           return ResponseEntity.ok(new LoginResponse(jwtValue, expiresIn));
+        var now = Instant.now();
+        var expiresIn = 300L;
+
+        var scopes = user.get().getRoles()
+                .stream()
+                .map(Role::getName)
+                .collect(Collectors.joining(" "));
+
+        var claims = JwtClaimsSet.builder()
+                .issuer("mybackend")
+                .subject(user.get().getUserId().toString())
+                .issuedAt(now)
+                .expiresAt(now.plusSeconds(expiresIn))
+                .claim("scope", scopes)
+                .build();
+
+        var jwtValue = jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
+
+        return ResponseEntity.ok(new LoginResponse(jwtValue, expiresIn));
     }
 }
